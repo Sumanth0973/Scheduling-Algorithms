@@ -1,0 +1,114 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+
+typedef struct PCB
+{
+    char* name;
+    int arrivalTime;
+    int burst;
+    int burstRemaining;
+} PCB;
+
+typedef struct Data
+{
+    int processcount;
+    int quantum;
+    char* algorithm;
+    PCB** pcbArray;
+    int initializedPCBs;
+} Data;
+
+int strToInt(char* str)
+{
+    int result = 0;
+    int sign = 1;
+    int i = 0;
+
+    if (str[0] == '-')
+    {
+        sign = -1;
+        i = 1;
+    }
+
+    while (str[i] != '\0')
+    {
+        result = result * 10 + (str[i] - '0');
+        i++;
+    }
+
+    return result * sign;
+}
+
+Data* readData(char* filename)
+{
+    FILE* fp = fopen(filename, "r");
+    if (fp == NULL)
+    {
+        printf("Error: Could not open file.\n");
+        return NULL;
+    }
+
+    Data* data = malloc(sizeof(Data));
+    data->processcount = 0;
+    data->quantum = 0;
+    data->algorithm = NULL;
+    data->pcbArray = NULL;
+    data->initializedPCBs = 0;
+
+    char* line = NULL;
+    size_t len = 0;
+    ssize_t read;
+
+    while ((read = getline(&line, &len, fp)) != -1)
+    {
+        char* word = strtok(line, " ");
+        int wordLen = strlen(word);
+
+        if (strstr(word, "processcount") != NULL)
+        {
+            data->processcount = strToInt(word + 12);
+            data->pcbArray = malloc(sizeof(PCB*) * data->processcount);
+        }
+        else if (strstr(word, "algorithm") != NULL)
+        {
+            data->algorithm = malloc(sizeof(char) * (wordLen - 9));
+
+            int i;
+            for (i = 9; i < wordLen; i++)
+                data->algorithm[i - 9] = *(word + i);
+
+            data->algorithm[i - 9] = '\0';
+        }
+        else if (strstr(word, "quantum") != NULL)
+        {
+            char* num = malloc(sizeof(char) * (wordLen - 7));
+
+            for (int i = 7; i < wordLen; i++)
+                *(num + (i - 7)) = *(word + i);
+
+            data->quantum = strToInt(num);
+            free(num);
+        }
+        else
+        {
+            PCB* pcb = malloc(sizeof(PCB));
+            pcb->name = malloc(sizeof(char) * (wordLen + 1));
+            strcpy(pcb->name, word);
+
+            char* arrivalTimeStr = strtok(NULL, " ");
+            pcb->arrivalTime = strToInt(arrivalTimeStr);
+
+            char* burstTimeStr = strtok(NULL, " ");
+            pcb->burst = strToInt(burstTimeStr);
+            pcb->burstRemaining = pcb->burst;
+
+            data->pcbArray[data->initializedPCBs] = pcb;
+            data->initializedPCBs++;
+        }
+    }
+
+    fclose(fp);
+    return data;
+}
